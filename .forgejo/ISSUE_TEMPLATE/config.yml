@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: ⚠️ Application issue
+    url: https://codeberg.org/hollow/aniyomi-extensions-fr/issues/new/choose
+    about: Issues and requests about the app itself should be opened in the Aniyomi repository instead
+  - name: 🖥️ Aniyomi website
+    url: https://aniyomi.org/help/
+    about: Guides, troubleshooting, and answers to common questions
+  - name: Aniyomi app GitHub repository
+    url: https://github.com/aniyomiorg/aniyomi
+    about: Issues about the app itself should be opened here instead
