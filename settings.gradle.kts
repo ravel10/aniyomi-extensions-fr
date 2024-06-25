@@ -17,15 +17,9 @@ if (System.getenv("CI") != "true") {
     loadAllIndividualExtensions()
     // loadIndividualExtension("all", "jellyfin")
 } else {
-    // Running in CI (GitHub Actions)
+    // Running in CI (Forgejo Actions)
 
-    val chunkSize = System.getenv("CI_CHUNK_SIZE").toInt()
-    val chunk = System.getenv("CI_CHUNK_NUM").toInt()
-
-    // Loads individual extensions
-    File(rootDir, "src").getChunk(chunk, chunkSize)?.forEach {
-        loadIndividualExtension(it.parentFile.name, it.name)
-    }
+    loadAllIndividualExtensions()
 }
 
 fun loadAllIndividualExtensions() {
