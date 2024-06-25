@@ -32,7 +32,7 @@ They are installed and uninstalled like regular apps in `.apk` format.
 ## Downloads
 
 If you prefer to directly download the APK files, they are available directly in this repository in the
-[`repo` branch](https://github.com/aniyomiorg/aniyomi-extensions/tree/repo/apk).
+[`repo` branch](https://codeberg.org/hollow/aniyomi-extensions-fr/src/branch/repo/apk).
 
 # Requests
 
