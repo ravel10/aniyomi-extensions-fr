@@ -2,13 +2,29 @@
 
 ---
 
-**[<kbd> <br> Add to Aniyomi (from a mobile with the app installed) <br> </kbd>][link-install]** 
+**[<kbd> <br> Tap here to install (from a mobile with the app installed) <br> </kbd>][link-install]** 
+
+**[<kbd> <br> Appuie ici pour installer (depuis un mobile avec l'app installée) <br> </kbd>][link-install]** 
+
+[link-install]: https://intradeus.github.io/http-protocol-redirector/?r=aniyomi://add-repo?url=https://codeberg.org/hollow/aniyomi-extensions-fr/media/branch/repo/index.min.json
 
 ---
 
 </div>
 
-[link-install]: https://intradeus.github.io/http-protocol-redirector/?r=aniyomi://add-repo?url=https://codeberg.org/hollow/aniyomi-extensions-fr/media/branch/repo/index.min.json
+<details><summary><b>Button didn't work? - Le bouton n'a pas marché ?</b>
+</summary>
+
+Copy that link and paste it in the "**anime** extension repo" page  
+Copie ce lien et colle-le dans la page "**anime** extension repo"
+
+[`https://codeberg.org/hollow/aniyomi-extensions-fr/media/branch/repo/index.min.json`][link-index]
+
+[link-index]: https://codeberg.org/hollow/aniyomi-extensions-fr/media/branch/repo/index.min.json
+
+</details>
+
+---
 
 | Build                      | Issues                                 |
 |----------------------------|----------------------------------------|
