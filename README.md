@@ -1,27 +1,38 @@
+<div align=center>
+
+---
+
+**[<kbd> <br> Add to Aniyomi (from a mobile with the app installed) <br> </kbd>][link-install]** 
+
+---
+
+</div>
+
+[link-install]: https://intradeus.github.io/http-protocol-redirector/?r=aniyomi://add-repo?url=https://codeberg.org/hollow/aniyomi-extensions-fr/raw/branch/repo/index.min.json
+
 | Build                      | Issues                                 |
 |----------------------------|----------------------------------------|
 | [![CI][badge-ci]][link-ci] | [![Issues][badge-issues]][link-issues] |
 
-[badge-ci]: https://codeberg.org/hollow/aniyomi-extensions-fr/actions/workflows/build_push.yml/badge.svg
+[badge-ci]: https://codeberg.org/hollow/aniyomi-extensions-fr/actions/workflows/build_push.yml/badge.svg?logo=forgejo
 [link-ci]: https://codeberg.org/hollow/aniyomi-extensions-fr/actions/workflows/build_push.yml/runs/latest
 
 [badge-issues]: https://codeberg.org/hollow/aniyomi-extensions-fr/badges/issues/open.svg
 [link-issues]: https://codeberg.org/hollow/aniyomi-extensions-fr/issues
 
-# ![app icon](./.forgejo/readme-images/app-icon.png) Aniyomi Extensions (Français)
+# ![app icon](./.github/readme-images/app-icon.png) Aniyomi Extensions (Français)
 
 This repository contains extensions for the [Aniyomi](https://github.com/aniyomiorg/aniyomi) application.
 
 # Usage
 
 Extension sources can be downloaded, installed, and uninstalled via the main Aniyomi app.
-They are installed and uninstalled like regular apps, in `.apk` format.
-<!--
+They are installed and uninstalled like regular apps in `.apk` format.
+
 ## Downloads
 
-If you prefer to directly download the APK files, they are available via https://aniyomi.org/extensions/ or directly in
-this repository in the [`repo` branch](https://github.com/aniyomiorg/aniyomi-extensions/tree/repo/apk).
--->
+If you prefer to directly download the APK files, they are available directly in this repository in the
+[`repo` branch](https://github.com/aniyomiorg/aniyomi-extensions/tree/repo/apk).
 
 # Requests
 
@@ -59,6 +70,7 @@ It might also be good to read our [CODE_OF_CONDUCT.md](./CODE_OF_CONDUCT.md).
 
 This project does not have any affiliation with the content providers available.
 
-This project is not affiliated with Mihon/Tachiyomi/Aniyomi.
+This project is not affiliated with Mihon/Tachiyomi/Aniyomi.  
 Don't ask for help about these extensions at the official support means of Mihon/Tachiyomi/Aniyomi.
+
 All credits to the codebase goes to the original contributors.
