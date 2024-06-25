@@ -8,7 +8,7 @@
 
 </div>
 
-[link-install]: https://intradeus.github.io/http-protocol-redirector/?r=aniyomi://add-repo?url=https://codeberg.org/hollow/aniyomi-extensions-fr/raw/branch/repo/index.min.json
+[link-install]: https://intradeus.github.io/http-protocol-redirector/?r=aniyomi://add-repo?url=https://codeberg.org/hollow/aniyomi-extensions-fr/media/branch/repo/index.min.json
 
 | Build                      | Issues                                 |
 |----------------------------|----------------------------------------|
