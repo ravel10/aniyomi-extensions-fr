@@ -9,6 +9,10 @@ import eu.kanade.tachiyomi.animeextension.fr.empirestreaming.dto.EpisodeDto
 import eu.kanade.tachiyomi.animeextension.fr.empirestreaming.dto.MovieInfoDto
 import eu.kanade.tachiyomi.animeextension.fr.empirestreaming.dto.SearchResultsDto
 import eu.kanade.tachiyomi.animeextension.fr.empirestreaming.dto.SerieEpisodesDto
+import eu.kanade.tachiyomi.animeextension.fr.empirestreaming.dto.TravelguardDataBase
+import eu.kanade.tachiyomi.animeextension.fr.empirestreaming.dto.TravelguardDataDirect
+import eu.kanade.tachiyomi.animeextension.fr.empirestreaming.dto.TravelguardDataIframe
+import eu.kanade.tachiyomi.animeextension.fr.empirestreaming.dto.TravelguardSlugDto
 import eu.kanade.tachiyomi.animeextension.fr.empirestreaming.dto.VideoDto
 import eu.kanade.tachiyomi.animeextension.fr.empirestreaming.extractors.EplayerExtractor
 import eu.kanade.tachiyomi.animesource.ConfigurableAnimeSource
@@ -19,13 +23,20 @@ import eu.kanade.tachiyomi.animesource.model.SEpisode
 import eu.kanade.tachiyomi.animesource.model.Video
 import eu.kanade.tachiyomi.animesource.online.ParsedAnimeHttpSource
 import eu.kanade.tachiyomi.lib.doodextractor.DoodExtractor
+import eu.kanade.tachiyomi.lib.playlistutils.PlaylistUtils
 import eu.kanade.tachiyomi.lib.voeextractor.VoeExtractor
 import eu.kanade.tachiyomi.network.GET
+import eu.kanade.tachiyomi.network.POST
 import eu.kanade.tachiyomi.network.await
 import eu.kanade.tachiyomi.util.asJsoup
 import eu.kanade.tachiyomi.util.parallelCatchingFlatMap
-import kotlinx.serialization.decodeFromString
+import eu.kanade.tachiyomi.util.parseAs
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
+import kotlinx.serialization.json.putJsonObject
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.Response
 import org.jsoup.nodes.Document
 import org.jsoup.nodes.Element
@@ -123,7 +134,7 @@ class EmpireStreaming : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
         val scriptJson = doc.selectFirst("script:containsData(window.empire):containsData(data:)")!!
             .data()
             .substringAfter("data:")
-            .substringBefore("countpremiumaccount:")
+            .substringBefore("\n")
             .substringBeforeLast(",")
         return if (doc.location().contains("serie")) {
             val data = json.decodeFromString<SerieEpisodesDto>(scriptJson)
@@ -135,7 +146,7 @@ class EmpireStreaming : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
             SEpisode.create().apply {
                 name = data.title
                 date_upload = data.date.toDate()
-                url = data.videos.encode()
+                url = "${data.id}!film!${data.videos.encode()}"
                 episode_number = 1F
             }.let(::listOf)
         }
@@ -143,8 +154,8 @@ class EmpireStreaming : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
 
     private fun episodeFromObject(obj: EpisodeDto) = SEpisode.create().apply {
         name = "Saison ${obj.season} Épisode ${obj.episode} : ${obj.title}"
-        episode_number = "${obj.season}.${obj.episode}".toFloatOrNull() ?: 1F
-        url = obj.video.encode()
+        episode_number = "${obj.season}.${obj.episode.toString().padStart(3, '0')}".toFloatOrNull() ?: 1F
+        url = "${obj.id}!serie!${obj.video.encode()}"
         date_upload = obj.date.toDate()
     }
 
@@ -154,26 +165,59 @@ class EmpireStreaming : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
     // val hosterSelection = preferences.getStringSet(PREF_HOSTER_SELECTION_KEY, PREF_HOSTER_SELECTION_DEFAULT)!!
     override suspend fun getVideoList(episode: SEpisode): List<Video> {
         val hosterSelection = preferences.getStringSet(PREF_HOSTER_SELECTION_KEY, PREF_HOSTER_SELECTION_DEFAULT)!!
-        val videos = episode.url.split(", ").parallelCatchingFlatMap {
-            val (id, type, hoster) = it.split("|")
+        val (idContent, type, videoStr) = episode.url.split("!")
+        val slug = client.newCall(
+            POST(
+                "$baseUrl/api/travelguard/prev",
+                body = buildJsonObject {
+                    putJsonObject("data") {
+                        put("idContent", idContent.toInt())
+                        put("typeContent", type)
+                        put("ip", "127.0.0.1")
+                        put("keyCall", "ermxxe\$1")
+                        put("type", "")
+                        put("infoIp", "")
+                    }
+                }.toString().toRequestBody("application/json; charset=utf-8".toMediaType()),
+            ),
+        ).await().parseAs<TravelguardSlugDto>().slug
+        val videos = videoStr.split(", ").parallelCatchingFlatMap {
+            val (id, lang, hoster) = it.split("|")
             if (hoster !in hosterSelection) return@parallelCatchingFlatMap emptyList()
-            videosFromPath("$id/$type", hoster)
+            val url = client.newCall(
+                POST(
+                    "$baseUrl/api/travelguard/get_data",
+                    headers,
+                    body = buildJsonObject {
+                        putJsonObject("data") {
+                            put("idVideo", id.toInt())
+                            put("slug", slug)
+                            put("ip", "127.0.0.1")
+                            put("info", "")
+                        }
+                    }.toString().toRequestBody("application/json; charset=utf-8".toMediaType()),
+                ),
+            ).await().body.string().let {
+                when (val data = json.decodeFromString<TravelguardDataBase>(it)) {
+                    is TravelguardDataDirect -> data.response
+                    is TravelguardDataIframe ->
+                        data.response.content
+                            .substringAfter("window.location.href = \"")
+                            .substringBefore("\"")
+                }
+            }
+
+            when (hoster) {
+                "doodstream" -> DoodExtractor(client).videosFromUrl(url)
+                "voe" -> VoeExtractor(client).videosFromUrl(url)
+                "Eplayer" -> EplayerExtractor(client).videosFromUrl(url)
+                "Eplayer_light" -> PlaylistUtils(client).extractFromHls(url, videoNameGen = { res ->
+                    "Eplayer - $res (${lang.uppercase()})"
+                })
+                else -> emptyList()
+            }
         }
         return videos
-    }
-
-    private suspend fun videosFromPath(path: String, hoster: String): List<Video> {
-        val url = client.newCall(GET("$baseUrl/player_submit/$path", headers)).await()
-            .body.string()
-            .substringAfter("window.location.href = \"")
-            .substringBefore('"')
-
-        return when (hoster) {
-            "doodstream" -> DoodExtractor(client).videosFromUrl(url)
-            "voe" -> VoeExtractor(client).videosFromUrl(url)
-            "Eplayer" -> EplayerExtractor(client).videosFromUrl(url)
-            else -> null
-        } ?: emptyList()
     }
 
     override fun videoListParse(response: Response) = throw UnsupportedOperationException()
@@ -290,8 +334,8 @@ class EmpireStreaming : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
 
         private const val PREF_HOSTER_SELECTION_KEY = "hoster_selection_new"
         private const val PREF_HOSTER_SELECTION_TITLE = "Sélectionnez l'hôte"
-        private val PREF_HOSTER_SELECTION_ENTRIES = arrayOf("Voe", "Dood", "Eplayer")
-        private val PREF_HOSTER_SELECTION_VALUES = arrayOf("voe", "doodstream", "Eplayer")
+        private val PREF_HOSTER_SELECTION_ENTRIES = arrayOf("Voe", "Dood", "Eplayer", "Eplayer Light")
+        private val PREF_HOSTER_SELECTION_VALUES = arrayOf("voe", "doodstream", "Eplayer", "Eplayer_light")
         private val PREF_HOSTER_SELECTION_DEFAULT by lazy { PREF_HOSTER_SELECTION_VALUES.toSet() }
     }
 }

@@ -34,6 +34,7 @@ data class SerieEpisodesDto(
 
 @Serializable
 data class EpisodeDto(
+    val id: Int,
     val episode: Int = 1,
     @SerialName("saison")
     val season: Int = 1,
@@ -54,6 +55,7 @@ data class VideoDto(val id: Int, val property: String, val version: String) {
 
 @Serializable
 data class MovieInfoDto(
+    val id: Int,
     @SerialName("Titre")
     val title: String,
     @SerialName("CreatedAt")
@@ -63,3 +65,24 @@ data class MovieInfoDto(
 ) {
     val date by lazy { createdAt.date.substringBefore(" ") }
 }
+
+@Serializable
+data class TravelguardSlugDto(val slug: String)
+
+@Serializable
+data class TravelguardDataContent(val content: String)
+
+@Serializable
+sealed class TravelguardDataBase
+
+@Serializable
+@SerialName("iframe")
+data class TravelguardDataIframe(
+    val response: TravelguardDataContent,
+) : TravelguardDataBase()
+
+@Serializable
+@SerialName("direct")
+data class TravelguardDataDirect(
+    val response: String,
+) : TravelguardDataBase()
