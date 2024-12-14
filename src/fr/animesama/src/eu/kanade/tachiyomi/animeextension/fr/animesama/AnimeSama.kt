@@ -13,6 +13,7 @@ import eu.kanade.tachiyomi.animesource.model.Video
 import eu.kanade.tachiyomi.animesource.online.AnimeHttpSource
 import eu.kanade.tachiyomi.lib.sendvidextractor.SendvidExtractor
 import eu.kanade.tachiyomi.lib.sibnetextractor.SibnetExtractor
+import eu.kanade.tachiyomi.lib.vidmolyextractor.VidMolyExtractor
 import eu.kanade.tachiyomi.lib.vkextractor.VkExtractor
 import eu.kanade.tachiyomi.network.GET
 import eu.kanade.tachiyomi.util.asJsoup
@@ -131,6 +132,7 @@ class AnimeSama : ConfigurableAnimeSource, AnimeHttpSource() {
                         contains("sibnet.ru") -> SibnetExtractor(client).videosFromUrl(playerUrl, prefix)
                         contains("vk.") -> VkExtractor(client, headers).videosFromUrl(playerUrl, prefix)
                         contains("sendvid.com") -> SendvidExtractor(client, headers).videosFromUrl(playerUrl, prefix)
+                        contains("vidmoly") -> VidMolyExtractor(client).videosFromUrl(playerUrl, prefix)
                         else -> emptyList()
                     }
                 }
