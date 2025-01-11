@@ -4,6 +4,7 @@ import android.app.Application
 import android.content.SharedPreferences
 import androidx.preference.ListPreference
 import androidx.preference.PreferenceScreen
+import app.cash.quickjs.QuickJs
 import eu.kanade.tachiyomi.animesource.ConfigurableAnimeSource
 import eu.kanade.tachiyomi.animesource.model.AnimeFilterList
 import eu.kanade.tachiyomi.animesource.model.AnimesPage
@@ -73,7 +74,7 @@ class AnimeSama : ConfigurableAnimeSource, AnimeHttpSource() {
                 .removePathSegment(animeUrl.pathSize - 3)
                 .build()
             fetchAnimeSeasons(url.toString())
-        }
+        }.distinctBy { it.url }
         return AnimesPage(seasons, false)
     }
     override fun latestUpdatesRequest(page: Int): Request = GET(baseUrl)
@@ -122,6 +123,11 @@ class AnimeSama : ConfigurableAnimeSource, AnimeHttpSource() {
     override fun episodeListParse(response: Response): List<SEpisode> = throw UnsupportedOperationException()
 
     // ============================ Video Links =============================
+    private val sibnetExtractor by lazy { SibnetExtractor(client) }
+    private val vkExtractor by lazy { VkExtractor(client, headers) }
+    private val sendvidExtractor by lazy { SendvidExtractor(client, headers) }
+    private val vidMolyExtractor by lazy { VidMolyExtractor(client, headers) }
+
     override suspend fun getVideoList(episode: SEpisode): List<Video> {
         val playerUrls = json.decodeFromString<List<List<String>>>(episode.url)
         val videos = playerUrls.flatMapIndexed { i, it ->
@@ -129,10 +135,10 @@ class AnimeSama : ConfigurableAnimeSource, AnimeHttpSource() {
             it.parallelCatchingFlatMap { playerUrl ->
                 with(playerUrl) {
                     when {
-                        contains("sibnet.ru") -> SibnetExtractor(client).videosFromUrl(playerUrl, prefix)
-                        contains("vk.") -> VkExtractor(client, headers).videosFromUrl(playerUrl, prefix)
-                        contains("sendvid.com") -> SendvidExtractor(client, headers).videosFromUrl(playerUrl, prefix)
-                        contains("vidmoly") -> VidMolyExtractor(client).videosFromUrl(playerUrl, prefix)
+                        contains("sibnet.ru") -> sibnetExtractor.videosFromUrl(playerUrl, prefix)
+                        contains("vk.") -> vkExtractor.videosFromUrl(playerUrl, prefix)
+                        contains("sendvid.com") -> sendvidExtractor.videosFromUrl(playerUrl, prefix)
+                        contains("vidmoly.to") -> vidMolyExtractor.videosFromUrl(playerUrl, prefix)
                         else -> emptyList()
                     }
                 }
@@ -142,13 +148,6 @@ class AnimeSama : ConfigurableAnimeSource, AnimeHttpSource() {
     }
 
     // ============================ Utils =============================
-    private fun sanitizeEpisodesJs(doc: String) = doc
-        .replace(Regex("[\"\t]"), "") // Fix trash format
-        .replace("'", "\"") // Fix quotes
-        .replace(Regex("/\\*.*?\\*/", setOf(RegexOption.MULTILINE, RegexOption.DOT_MATCHES_ALL)), "") // Remove block comments
-        .replace(Regex("(^|,|\\[)\\s*//.*?$", RegexOption.MULTILINE), "$1") // Remove line comments
-        .replace(Regex(",\\s*]"), "]") // Remove trailing comma
-
     override fun List<Video>.sort(): List<Video> {
         val voices = preferences.getString(PREF_VOICES_KEY, PREF_VOICES_DEFAULT)!!
         val quality = preferences.getString(PREF_QUALITY_KEY, PREF_QUALITY_DEFAULT)!!
@@ -166,14 +165,17 @@ class AnimeSama : ConfigurableAnimeSource, AnimeHttpSource() {
         return fetchAnimeSeasons(res)
     }
 
+    private val commentRegex by lazy { Regex("/\\*.*?\\*/", RegexOption.DOT_MATCHES_ALL) }
+    private val seasonRegex by lazy { Regex("^\\s*panneauAnime\\(\"(.*)\", \"(.*)\"\\)", RegexOption.MULTILINE) }
+
     private fun fetchAnimeSeasons(response: Response): List<SAnime> {
         val animeDoc = response.asJsoup()
         val animeUrl = response.request.url
         val animeName = animeDoc.getElementById("titreOeuvre")?.text() ?: ""
 
-        val seasonRegex = Regex("^\\s*panneauAnime\\(\"(.*)\", \"(.*)\"\\)", RegexOption.MULTILINE)
         val scripts = animeDoc.select("h2 + p + div > script, h2 + div > script").toString()
-        val animes = seasonRegex.findAll(scripts).flatMapIndexed { animeIndex, seasonMatch ->
+        val uncommented = commentRegex.replace(scripts, "")
+        val animes = seasonRegex.findAll(uncommented).flatMapIndexed { animeIndex, seasonMatch ->
             val (seasonName, seasonStem) = seasonMatch.destructured
             if (seasonStem.contains("film", true)) {
                 val moviesUrl = "$animeUrl/$seasonStem"
@@ -221,23 +223,13 @@ class AnimeSama : ConfigurableAnimeSource, AnimeHttpSource() {
 
     private fun fetchPlayers(url: String): List<List<String>> {
         val docUrl = "$url/episodes.js"
-        val players = mutableListOf<List<String>>()
-        val doc = client.newCall(GET(docUrl)).execute().run {
-            if (code != 200) {
-                close()
-                return listOf()
-            }
-            body.string()
+        val doc = client.newCall(GET(docUrl)).execute().use { it.body.string() }
+        val urls = QuickJs.create().use { qjs ->
+            qjs.evaluate(doc)
+            val res = qjs.evaluate("[...Array(10).keys()].map(i => this[`eps\${i}`] || null)")
+            (res as Array<*>).mapNotNull { (it as Array<*>?)?.map { it as String } }
         }
-        val sanitizedDoc = sanitizeEpisodesJs(doc)
-        for (i in 1..8) {
-            val numPlayers = getPlayers("eps$i", sanitizedDoc)
-            if (numPlayers != null) players.add(numPlayers)
-        }
-        val asPlayers = getPlayers("epsAS", sanitizedDoc)
-        if (asPlayers != null) players.add(asPlayers)
-        if (players.isEmpty()) return emptyList()
-        return List(players[0].size) { i -> players.mapNotNull { it.getOrNull(i) }.distinct() }
+        return List(urls[0].size) { i -> urls.mapNotNull { it.getOrNull(i) }.distinct() }
     }
 
     private fun getPlayers(playerName: String, doc: String): List<String>? {
