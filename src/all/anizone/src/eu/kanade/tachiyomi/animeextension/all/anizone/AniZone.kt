@@ -299,7 +299,7 @@ class AniZone : AnimeHttpSource(), ConfigurableAnimeSource {
 
     override fun videoListParse(response: Response): List<Video> {
         val document = response.asJsoup()
-        val serverSelects = document.select("select > option[value]")
+        val serverSelects = document.select("div.p-4 button")
 
         val subtitles = document.select("track[kind=subtitles]").map {
             Track(it.attr("src"), it.attr("label"))
@@ -308,7 +308,7 @@ class AniZone : AnimeHttpSource(), ConfigurableAnimeSource {
         val m3u8List = mutableListOf(
             VideoData(
                 url = document.selectFirst("media-player")!!.attr("src"),
-                name = serverSelects.first()!!.text(),
+                name = serverSelects.first()!!.select(".text-lg").text(),
                 subtitles = subtitles,
             ),
         )
@@ -316,7 +316,7 @@ class AniZone : AnimeHttpSource(), ConfigurableAnimeSource {
 
         serverSelects.drop(1).forEach { video ->
             val updates = buildJsonObject {
-                put("videoKey", video.attr("value"))
+                put("videoKey", video.attr("wire:click").substringAfter("setVideo(").substringBefore(")"))
             }
             val calls = buildJsonArray { }
 
