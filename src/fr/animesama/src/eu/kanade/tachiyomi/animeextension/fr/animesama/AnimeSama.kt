@@ -226,8 +226,8 @@ class AnimeSama : ConfigurableAnimeSource, AnimeHttpSource() {
         val doc = client.newCall(GET(docUrl)).execute().use { it.body.string() }
         val urls = QuickJs.create().use { qjs ->
             qjs.evaluate(doc)
-            val res = qjs.evaluate("[...Array(10).keys()].map(i => this[`eps\${i}`] || null)")
-            (res as Array<*>).mapNotNull { (it as Array<*>?)?.map { it as String } }
+            val res = qjs.evaluate("JSON.stringify(Array.from({length: 10}, (e,i) => this[`eps\${i}`]).filter(e => e))")
+            json.decodeFromString<List<List<String>>>(res as String)
         }
         return List(urls[0].size) { i -> urls.mapNotNull { it.getOrNull(i) }.distinct() }
     }
