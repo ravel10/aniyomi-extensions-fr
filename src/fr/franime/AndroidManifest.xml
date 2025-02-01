@@ -14,7 +14,7 @@
                 <data
                         android:scheme="https"
                         android:host="franime.fr"
-                        android:pathPattern="/anime/..*"
+                        android:pathPattern="/anime2/..*"
                 />
             </intent-filter>
         </activity>
