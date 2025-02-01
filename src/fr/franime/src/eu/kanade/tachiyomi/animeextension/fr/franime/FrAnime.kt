@@ -29,7 +29,7 @@ class FrAnime : AnimeHttpSource() {
     override val baseUrl = "https://$domain"
 
     private val baseApiUrl = "https://api.$domain/api"
-    private val baseApiAnimeUrl = "$baseApiUrl/anime"
+    private val baseApiAnimeUrl = "$baseApiUrl/anime2"
 
     override val lang = "fr"
 
