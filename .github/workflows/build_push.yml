@@ -12,11 +12,8 @@ on:
       - ".github/workflows/build_push.yml"
 
 concurrency:
-  group: <span class="math-inline">\{\{ github\.workflow \}\}
-cancel\-in\-progress\: true
-env\:
-BOT\_EMAIL\: "</span>{{ secrets.BOT_EMAIL }}" # Use secrets for sensitive information
-  BOT_NAME: "${{ secrets.BOT_NAME }}"
+  group: ${{ github.workflow }}
+  cancel-in-progress: true
 
 jobs:
   prepare:
@@ -37,15 +34,6 @@ jobs:
           files_separator: " "
           safe_output: false
 
-- name: Bump extensions (if needed)
-        if: steps.modified-libs.outputs.any_changed == 'true' # Correct indentation here
-        run: |
-          python ./.github/scripts/bump-versions.py ${{ steps.modified-libs.outputs.all_changed_files }}
-          git config --global user.email "${{ secrets.BOT_EMAIL }}"
-          git config --global user.name "${{ secrets.BOT_NAME }}"
-          git commit -m "Bumped versions"
-          git push
-
       - name: Validate Gradle Wrapper
         uses: gradle/wrapper-validation-action@v2
 
@@ -53,9 +41,9 @@ jobs:
     name: Build individual modules
     needs: prepare
     runs-on: ubuntu-latest
-    strategy: # Build matrix for different architectures (optional but recommended)
+    strategy:
       matrix:
-        arch: [x86_64, arm64] # Add arm64 if needed
+        arch: [x86_64, arm64]
     steps:
       - name: Checkout master
         uses: actions/checkout@v3
@@ -71,19 +59,21 @@ jobs:
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
         with:
-          packages: platform-tools, build-tools;34.0.0 # Specify necessary packages
+          packages: platform-tools, build-tools;34.0.0
 
       - name: Set up aapt2 (ARM)
-        if: matrix.arch == 'arm64' # Use matrix instead of runner.arch
+        if: matrix.arch == 'arm64'
         run: |
           wget https://codeberg.org/hollow/android-sdk-tools/releases/download/v34.0.3/android-sdk-tools-static-arm.zip
           unzip android-sdk-tools-static-arm.zip
-          echo "ARM_AAPT=-Pandroid.aapt2FromMavenOverride=$GITHUB_WORKSPACE/build-tools/aapt2" >> <span class="math-inline">GITHUB\_ENV
-\- name\: Set up Gradle
-uses\: gradle/actions/setup\-gradle@v3
-\- name\: Prepare signing key
-run\: \|
-echo "</span>{{ secrets.SIGNING_KEY }}" | base64 -d > signingkey.jks
+          echo "ARM_AAPT=-Pandroid.aapt2FromMavenOverride=$GITHUB_WORKSPACE/build-tools/aapt2" >> $GITHUB_ENV
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v3
+
+      - name: Prepare signing key
+        run: |
+          echo "${{ secrets.SIGNING_KEY }}" | base64 -d > signingkey.jks
 
       - name: Build extensions
         env:
@@ -93,7 +83,7 @@ echo "</span>{{ secrets.SIGNING_KEY }}" | base64 -d > signingkey.jks
         run: ./gradlew $ARM_AAPT -p src assembleRelease
 
       - name: Upload APKs
-        uses: actions/upload-artifact@v3 # Use official action
+        uses: actions/upload-artifact@v3
         if: github.repository == 'hollow/aniyomi-extensions-fr'
         with:
           name: individual-apks
@@ -114,7 +104,7 @@ echo "</span>{{ secrets.SIGNING_KEY }}" | base64 -d > signingkey.jks
           sudo apt-get update && sudo apt-get install rsync -y
 
       - name: Download APK artifacts
-        uses: actions/download-artifact@v3 # Use official action
+        uses: actions/download-artifact@v3
         with:
           name: individual-apks
           path: ~/apk-artifacts
@@ -128,7 +118,7 @@ echo "</span>{{ secrets.SIGNING_KEY }}" | base64 -d > signingkey.jks
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
         with:
-          packages: platform-tools, build-tools;34.0.0 # Specify necessary packages
+          packages: platform-tools, build-tools;34.0.0
 
       - name: Set up build-tools (ARM)
         if: runner.arch == 'arm64'
@@ -137,16 +127,30 @@ echo "</span>{{ secrets.SIGNING_KEY }}" | base64 -d > signingkey.jks
           mkdir -p $HOME/.android/sdk/build-tools/
           unzip android-sdk-tools-static-arm.zip -d $HOME/.android/sdk/build-tools/
           mv $HOME/.android/sdk/build-tools/build-tools $HOME/.android/sdk/build-tools/34.0.0
-          echo 'ANDROID_DATA=.' >> <span class="math-inline">GITHUB\_ENV
-\- name\: Checkout master
-uses\: actions/checkout@v3
-with\:
-ref\: master
-path\: master
-\- name\: Create repo artifacts
-run\: \|
-cd master
-python \./\.github/scripts/move\-apks\.py
-INSPECTOR\_LINK\="</span>(curl -s "https://api.github.com/repos/aniyomiorg/aniyomi-extensions-inspector/releases/latest" | jq -r '.assets[0].browser_download_url')"
+          echo 'ANDROID_DATA=.' >> $GITHUB_ENV
+
+      - name: Checkout master
+        uses: actions/checkout@v3
+        with:
+          ref: master
+          path: master
+
+      - name: Create repo artifacts
+        run: |
+          cd master
+          python ./.github/scripts/move-apks.py
+          INSPECTOR_LINK="$(curl -s "https://api.github.com/repos/aniyomiorg/aniyomi-extensions-inspector/releases/latest" | jq -r '.assets[0].browser_download_url')"
           curl -L "$INSPECTOR_LINK" -o ./Inspector.jar
-          java -jar ./Inspector.jar "repo/apk" "output.json"
+          java -jar ./Inspector.jar "repo/apk" "output.json" "tmp"
+
+      - name: Checkout repo branch
+        uses: actions/checkout@v3
+        with:
+          ref: repo
+          path: repo
+          fetch-depth: 2147483647
+
+      - name: Deploy repo
+        run: |
+          cd repo
+          ../master/.github/scripts/commit-repo.sh
