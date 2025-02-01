@@ -1,4 +1,3 @@
-# build_pull_request.yml
 name: PR build check
 
 on:
