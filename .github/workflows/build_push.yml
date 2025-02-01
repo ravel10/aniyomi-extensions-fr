@@ -37,11 +37,11 @@ jobs:
           files_separator: " "
           safe_output: false
 
-      - name: Bump extensions (if needed)
-        if: steps.modified-libs.outputs.any_changed == 'true'
+- name: Bump extensions (if needed)
+        if: steps.modified-libs.outputs.any_changed == 'true' # Correct indentation here
         run: |
-          python ./.github/scripts/bump-versions.py <span class="math-inline">\{\{ steps\.modified\-libs\.outputs\.all\_changed\_files \}\}
-git config \-\-global user\.email "</span>{{ secrets.BOT_EMAIL }}"
+          python ./.github/scripts/bump-versions.py ${{ steps.modified-libs.outputs.all_changed_files }}
+          git config --global user.email "${{ secrets.BOT_EMAIL }}"
           git config --global user.name "${{ secrets.BOT_NAME }}"
           git commit -m "Bumped versions"
           git push
